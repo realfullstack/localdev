@@ -1,0 +1,37 @@
+{
+    "terminal.integrated.shell.linux": "/bin/bash",
+    "[python]": {
+        "editor.formatOnSave": true
+    },
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": false,
+    "python.linting.flake8Enabled": true,
+    "python.pythonPath": "/usr/local/bin/python3.8",
+    "python.pipenvPath": "/usr/local/bin/pipenv",
+    "python.sortImports.args": [
+        "-sp .isort.cfg"
+    ],
+    "editor.insertSpaces": true,
+    "editor.tabSize": 4,
+    "editor.detectIndentation": true,
+    "files.associations": {
+        "**/templates/**/*.html": "html",
+        "**/templates/**/*.txt": "django-txt"
+    },
+    "emmet.includeLanguages": {
+        "django-html": "html"
+    },
+    "files.exclude": {},
+    "files.watcherExclude": {
+        "*": true,
+        "/usr/local/lib/python3.8/site-packages/": true
+    },
+    "[jsonc]": {
+        "editor.defaultFormatter": "vscode.json-language-features"
+    },
+    "python.formatting.provider": "black", //Pylance | Microsoft
+    "coverage-gutters.coverageFileNames": [
+        "coverage.xml"
+    ],
+    "coverage-gutters.showGutterCoverage": true
+}

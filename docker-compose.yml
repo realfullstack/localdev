@@ -1,0 +1,178 @@
+version: '3.7'
+
+services:
+  # ROUTING
+  traefik:
+    image: traefik:v2.2.6
+    command: >
+      --log.level=DEBUG
+      --accesslog
+      --entrypoints.http.address=:80
+      --entrypoints.http.forwardedHeaders.trustedIPs=10.0.0.0/8,172.0.0.0/8,127.0.0.1
+      --providers.docker.watch=true
+      --providers.docker.constraints="Label(`project`,`realfullstack`)"
+      --providers.docker.exposedByDefault=true
+      --providers.docker.useBindPortIP=true
+      --providers.docker.swarmMode=false
+      --providers.docker.network=""
+      --providers.docker.defaultRule="HostRegexp(`{{ index .Labels \"com.docker.compose.service\" }}.{domain:[a-z0-9-\\.]+}`)"
+      --providers.file.directory=/etc/traefik/
+      --providers.file.watch=true
+      --serversTransport.forwardingTimeouts.dialTimeout=60s
+      --serversTransport.forwardingTimeouts.responseHeaderTimeout=60s
+      --api.insecure=true
+      --api.dashboard=true
+    ports:
+      - 80
+      - 8080
+      - "${TRAEFIK_HOST_PORT:-80}:80"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    labels:
+      - traefik.http.routers.traefik.rule=HostRegexp(`traefik.{domain:[a-z0-9-\\.]+}`)
+      - traefik.http.routers.traefik.service=api@internal
+      - traefik.http.services.traefik.loadbalancer.server.port=8080
+      - traefik.http.routers.traefik.middlewares=traefik-compress
+      - traefik.http.middlewares.traefik-compress.compress=true
+      - project=realfullstack
+  # ROUTING END
+
+  # Frontend
+  frontend:
+    build:
+      context: ./projects/frontend/
+      dockerfile: ./Dockerfile
+      args:
+        DOCKER_UID: ${DOCKER_UID:-1000}
+    image: realfullstack-frontend
+    command: /bin/bash
+    working_dir: /app
+    tty: true
+    stdin_open: true
+    ports:
+      - 3000
+    env_file:
+      - ./projects/frontend/.env
+    volumes:
+      - ./projects/frontend/repo/:/app
+      - ./projects/frontend/.env:/app/.env
+      - ./projects/frontend/.vscode:/app/.vscode
+      - ./projects/frontend/Makefile:/app/Makefile
+      - /root
+      - /home/user
+    depends_on:
+      - traefik
+    labels:
+      - project=realfullstack
+      - traefik.http.middlewares.frontend.compress=true
+      - traefik.http.routers.frontend.middlewares=frontend
+  # Frontend END
+
+  # Backend
+  backend:
+    build:
+      context: ./projects/backend/
+      dockerfile: ./Dockerfile
+      args:
+        DOCKER_UID: ${DOCKER_UID:-1000}
+    image: realfullstack-backend
+    command: /bin/bash
+    working_dir: /app
+    tty: true
+    stdin_open: true
+    ports:
+      - 8000
+    env_file:
+      - ./projects/backend/.env
+    volumes:
+      - ./projects/backend/repo/:/app
+      - ./projects/backend/.env:/app/.env
+      - ./projects/backend/.vscode:/app/.vscode
+      - ./projects/backend/Makefile:/app/Makefile
+      - /root
+      - /home/user
+    depends_on:
+      - traefik
+      - postgres
+      - redis
+      - rabbitmq
+      - mailer
+    labels:
+      - project=realfullstack
+      - traefik.http.middlewares.backend.compress=true
+      - traefik.http.routers.backend.middlewares=backend
+  backend-jupyter:
+    build:
+      context: ./projects/backend/
+      dockerfile: ./Dockerfile.jupyter
+      args:
+        DOCKER_UID: ${DOCKER_UID:-1000}
+    image: realfullstack-backend-jupyter
+    command: python manage.py shell_plus --notebook
+    volumes:
+      - ./projects/backend/repo/:/app
+      - ./projects/backend/notebooks/:/app/notebooks
+    ports:
+      - 8888
+    depends_on:
+      - backend
+    labels:
+      - project=realfullstack
+      - traefik.http.routers.backend-jupyter.rule=HostRegexp(`backend-jupyter.{domain:[a-z0-9-\\.]+}`)
+      - traefik.http.services.backend-jupyter.loadbalancer.server.port=8888
+    # Backend END
+
+    # Services
+  postgres:
+    image: postgres:13.1-alpine
+    ports:
+      - 5432
+    env_file:
+      - .env
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: "rabbitmq:3.8.9-management-alpine"
+    env_file:
+      - .env
+    ports:
+      - 15672
+      - 5672
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    labels:
+      - project=realfullstack
+      - traefik.http.services.rabbitmq.loadbalancer.server.port=15672
+  
+  redis:
+    image: redis:alpine3.12
+    ports:
+      - 6379
+    env_file:
+      - .env
+    volumes:
+      - redis-data:/data
+
+
+  mailer:
+    image: maildev/maildev:2.0.0-beta3
+    ports:
+      - 1080
+      - 1025
+    entrypoint: /home/node/bin/maildev
+    command: ["--web", "1080", "--smtp", "1025"]
+    healthcheck:
+      disable: true
+    labels:
+      - project=realfullstack
+      - traefik.http.services.mailer.loadbalancer.server.port=1080
+
+    # Services END
+
+
+
+volumes:
+  postgres-data:
+  redis-data:
+  rabbitmq-data:
