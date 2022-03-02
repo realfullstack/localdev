@@ -75,4 +75,8 @@ make-messages:
 
 compile-messages:
 	python manage.py compilemessages -l es
-.PHONY: make-messages
+.PHONY: compile-messages
+
+collectstatic:
+	python manage/static_dev.py collectstatic --no-input
+.PHONY: collectstatic

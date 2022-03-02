@@ -59,7 +59,7 @@ services:
       - ./projects/frontend/.vscode:/app/.vscode
       - ./projects/frontend/Makefile:/app/Makefile
       - /root
-      - /home/user
+      - /home/app
     depends_on:
       - traefik
     labels:
@@ -90,7 +90,7 @@ services:
       - ./projects/backend/.vscode:/app/.vscode
       - ./projects/backend/Makefile:/app/Makefile
       - /root
-      - /home/user
+      - /home/django
     depends_on:
       - traefik
       - postgres
@@ -144,7 +144,7 @@ services:
     labels:
       - project=realfullstack
       - traefik.http.services.rabbitmq.loadbalancer.server.port=15672
-  
+
   redis:
     image: redis:alpine3.12
     ports:
